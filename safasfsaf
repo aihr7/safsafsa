@@ -1,0 +1,31 @@
+
+PEERS=$(curl -s --max-time 3 --retry 2 --retry-connrefused "https://rpc-zero-gravity-testnet.trusted-point.com/peers.txt")
+if [ -z "$PEERS" ]; then
+    echo "No peers were retrieved from the URL."
+else
+    echo -e "\nPEERS: "$PEERS""
+    sed -i "s/^persistent_peers *=.*/persistent_peers = \"$PEERS\"/" "$HOME/.evmosd/config/config.toml"
+    echo -e "\nConfiguration file updated successfully.\n"
+fi
+sudo systemctl daemon-reload && \EXTERNAL_IP=$(wget -qO- eth0.me) \
+PROXY_APP_PORT=26658 \
+P2P_PORT=26656 \
+PPROF_PORT=6060 \
+API_PORT=1317 \
+GRPC_PORT=9090 \
+GRPC_WEB_PORT=9091
+
+sudo systemctl enable ogd && \
+sudo systemctl restart ogd && \
+sudo journalctl -u ogd -f -o cat
+sed -i \
+    -e "/\[api\]/,/^\[/{s/\(address = \"tcp:\/\/\)\([^:]*\):\([0-9]*\)\(\".*\)/\1\2:$API_PORT\4/}" \
+    -e "/\[grpc\]/,/^\[/{s/\(address = \"\)\([^:]*\):\([0-9]*\)\(\".*\)/\1\2:$GRPC_PORT\4/}" \
+    -e "/\[grpc-web\]/,/^\[/{s/\(address = \"\)\([^:]*\):\([0-9]*\)\(\".*\)/\1\2:$GRPC_WEB_PORT\4/}" $HOME/.evmosd/config/app.toml
+sed -i \
+    -e "s/\(proxy_app = \"tcp:\/\/\)\([^:]*\):\([0-9]*\).*/\1\2:$PROXY_APP_PORT\"/" \
+    -e "s/\(laddr = \"tcp:\/\/\)\([^:]*\):\([0-9]*\).*/\1\2:$RPC_PORT\"/" \
+    -e "s/\(pprof_laddr = \"\)\([^:]*\):\([0-9]*\).*/\1localhost:$PPROF_PORT\"/" \
+    -e "/\[p2p\]/,/^\[/{s/\(laddr = \"tcp:\/\/\)\([^:]*\):\([0-9]*\).*/\1\2:$P2P_PORT\"/}" \
+    -e "/\[p2p\]/,/^\[/{s/\(external_address = \"\)\([^:]*\):\([0-9]*\).*/\1${EXTERNAL_IP}:$P2P_PORT\"/; t; s/\(external_address = \"\).*/\1${EXTERNAL_IP}:$P2P_PORT\"/}" \
+    $HOME/.evmosd/config/config.toml
