@@ -1,4 +1,4 @@
-
+یسببس
 PEERS=$(curl -s --max-time 3 --retry 2 --retry-connrefused "https://rpc-zero-gravity-testnet.trusted-point.com/peers.txt")
 if [ -z "$PEERS" ]; then
     echo "No peers were retrieved from the URL."
